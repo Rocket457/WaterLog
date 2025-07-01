@@ -18,13 +18,30 @@ function showRoomsSection() {
 // Carregar salas
 async function loadRooms() {
     try {
-        const response = await fetch(`/api/users/${currentUser.id}/rooms`);
-        
-        if (!response.ok) {
+        // Carregar todas as salas públicas e privadas que o usuário pode ver
+        const publicRoomsResponse = await fetch(`/api/rooms/public?userId=${currentUser.id}`);
+        if (!publicRoomsResponse.ok) {
             throw new Error('Erro ao carregar salas');
         }
+        const publicRooms = await publicRoomsResponse.json();
         
-        rooms = await response.json();
+        // Carregar salas do usuário para obter status de conexão
+        const userRoomsResponse = await fetch(`/api/users/${currentUser.id}/rooms`);
+        if (!userRoomsResponse.ok) {
+            throw new Error('Erro ao carregar salas do usuário');
+        }
+        const userRooms = await userRoomsResponse.json();
+        
+        // Combinar informações: salas disponíveis com status do usuário
+        rooms = publicRooms.map(publicRoom => {
+            const userRoom = userRooms.find(ur => ur.id === publicRoom.id);
+            return {
+                ...publicRoom,
+                isConnected: userRoom ? userRoom.isConnected : false,
+                connectedMembers: userRoom ? userRoom.connectedMembers : 0
+            };
+        });
+        
         renderRooms();
         updateCurrentRoomIndicator();
     } catch (error) {
@@ -102,6 +119,7 @@ function renderRooms() {
                     <div class="room-name">${room.name}</div>
                     <div class="room-status ${room.isPublic ? 'public' : 'private'}">
                         ${room.isPublic ? 'Pública' : 'Privada'}
+                        ${room.hasPassword ? ' <i class="fas fa-lock"></i>' : ''}
                     </div>
                 </div>
                 <div class="room-connection-status ${connectionClass}">
@@ -128,8 +146,17 @@ function renderRooms() {
 // Mostrar modal de criar sala
 function showCreateRoomModal() {
     const modal = document.getElementById('createRoomModal');
+    const isPublicCheckbox = document.getElementById('roomIsPublic');
+    const passwordGroup = document.getElementById('roomPasswordGroup');
     if (modal) {
         modal.style.display = 'block';
+    }
+    if (isPublicCheckbox && passwordGroup) {
+        // Mostrar campo de senha apenas se for sala privada
+        isPublicCheckbox.onchange = function() {
+            passwordGroup.style.display = isPublicCheckbox.checked ? 'none' : 'block';
+        };
+        passwordGroup.style.display = isPublicCheckbox.checked ? 'none' : 'block';
     }
 }
 
@@ -142,6 +169,8 @@ function showRoomDetails(room) {
     const createdAtEl = document.getElementById('roomCreatedAt');
     const membersListEl = document.getElementById('roomMembersList');
     const joinBtn = document.getElementById('joinRoomBtn');
+    const passwordStatus = document.getElementById('roomPasswordStatus');
+    const passwordText = document.getElementById('roomPasswordText');
     
     if (!modal || !nameEl || !descEl || !membersCountEl || !createdAtEl || !membersListEl || !joinBtn) {
         console.error('Elementos do modal de detalhes da sala não encontrados');
@@ -181,6 +210,15 @@ function showRoomDetails(room) {
     });
     
     // Configurar botões
+    if (passwordStatus && passwordText) {
+        if (room.hasPassword) {
+            passwordStatus.style.display = 'inline-block';
+            passwordText.textContent = 'Protegida por senha';
+        } else {
+            passwordStatus.style.display = 'inline-block';
+            passwordText.textContent = 'Sem senha';
+        }
+    }
     const isMember = room.members.includes(currentUser.id);
     const isConnected = room.isConnected;
     
@@ -191,10 +229,31 @@ function showRoomDetails(room) {
     } else {
         joinBtn.textContent = 'Entrar na Sala';
         joinBtn.className = 'btn-primary';
-        joinBtn.onclick = () => joinRoom(room.id);
+        joinBtn.onclick = () => {
+            if (room.hasPassword) {
+                openRoomPasswordModal(room.id);
+            } else {
+                joinRoom(room.id);
+            }
+        };
     }
     
     modal.style.display = 'block';
+}
+
+// Modal de senha da sala
+function openRoomPasswordModal(roomId) {
+    const modal = document.getElementById('roomPasswordModal');
+    const form = document.getElementById('roomPasswordForm');
+    const input = document.getElementById('roomPasswordInput');
+    if (!modal || !form || !input) return;
+    input.value = '';
+    modal.style.display = 'block';
+    form.onsubmit = function(e) {
+        e.preventDefault();
+        joinRoom(roomId, input.value);
+        modal.style.display = 'none';
+    };
 }
 
 // Criar sala
@@ -209,6 +268,14 @@ async function createRoom(event) {
         isPublic: formData.get('isPublic') === 'on',
         createdBy: currentUser.id
     };
+    if (!roomData.isPublic) {
+        const password = formData.get('password');
+        if (!password) {
+            showToast('Senha é obrigatória para salas privadas', 'error');
+            return;
+        }
+        roomData.password = password;
+    }
     
     try {
         const response = await fetch('/api/rooms', {
@@ -232,12 +299,14 @@ async function createRoom(event) {
 }
 
 // Entrar na sala
-async function joinRoom(roomId) {
+async function joinRoom(roomId, password = null) {
     try {
+        const body = { userId: currentUser.id };
+        if (password) body.password = password;
         const response = await fetch(`/api/rooms/${roomId}/join`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUser.id })
+            body: JSON.stringify(body)
         });
         
         if (response.ok) {
@@ -348,7 +417,6 @@ async function leaveCurrentRoom() {
         showToast('Erro ao sair da sala', 'error');
     }
 }
-
 
 function setupRoomForms() {
     const createRoomForm = document.getElementById('createRoomForm');

@@ -772,11 +772,41 @@ app.get('/api/rooms', (req, res) => {
   res.json(db.rooms || []);
 });
 
+// API para listar todas as salas públicas e privadas que o usuário pode ver
+app.get('/api/rooms/public', (req, res) => {
+  const { userId } = req.query;
+  
+  let availableRooms = [];
+  
+  if (userId) {
+    // Incluir salas públicas e salas privadas onde o usuário é membro
+    availableRooms = (db.rooms || []).filter(room => 
+      room.isPublic || room.members.includes(userId)
+    );
+  } else {
+    // Se não há userId, mostrar apenas salas públicas
+    availableRooms = (db.rooms || []).filter(room => room.isPublic);
+  }
+  
+  const roomsWithoutPassword = availableRooms.map(room => ({
+    ...room,
+    password: undefined, // Não retornar a senha
+    hasPassword: !!room.password // Indicar se tem senha
+  }));
+  
+  res.json(roomsWithoutPassword);
+});
+
 app.post('/api/rooms', (req, res) => {
-  const { name, description, maxMembers, isPublic, createdBy } = req.body;
+  const { name, description, maxMembers, isPublic, password, createdBy } = req.body;
   
   if (!name || !createdBy) {
     return res.status(400).json({ error: 'Nome da sala e criador são obrigatórios' });
+  }
+  
+  // Verificar se sala privada tem senha
+  if (!isPublic && !password) {
+    return res.status(400).json({ error: 'Senha é obrigatória para salas privadas' });
   }
   
   const room = {
@@ -785,6 +815,7 @@ app.post('/api/rooms', (req, res) => {
     description: description || '',
     maxMembers: maxMembers || 50,
     isPublic: isPublic !== false,
+    password: password || null, // Senha obrigatória para salas privadas
     createdAt: new Date().toISOString(),
     members: [createdBy],
     createdBy
@@ -813,7 +844,7 @@ app.get('/api/rooms/:roomId', (req, res) => {
 
 app.post('/api/rooms/:roomId/join', (req, res) => {
   const { roomId } = req.params;
-  const { userId } = req.body;
+  const { userId, password } = req.body;
   
   const room = db.rooms?.find(r => r.id === roomId);
   if (!room) {
@@ -826,6 +857,11 @@ app.post('/api/rooms/:roomId/join', (req, res) => {
   
   if (room.members.length >= room.maxMembers) {
     return res.status(400).json({ error: 'Sala está cheia' });
+  }
+  
+  // Verificar senha se a sala tiver uma
+  if (room.password && room.password !== password) {
+    return res.status(401).json({ error: 'Senha incorreta' });
   }
   
   room.members.push(userId);

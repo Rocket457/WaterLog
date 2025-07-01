@@ -389,6 +389,11 @@
                             Sala pública (qualquer pessoa pode entrar)
                         </label>
                     </div>
+                    <div class="form-group" id="roomPasswordGroup" style="display: none;">
+                        <label for="roomPassword">Senha da Sala:</label>
+                        <input type="password" id="roomPassword" name="password" placeholder="Digite a senha da sala privada" required>
+                        <small class="form-help">Senha obrigatória para salas privadas</small>
+                    </div>
                     <div class="modal-actions">
                         <button type="button" class="btn-secondary" onclick="closeModal('createRoomModal')">Cancelar</button>
                         <button type="submit" class="btn-primary">Criar Sala</button>
@@ -413,6 +418,7 @@
                         <div class="room-stats">
                             <span><i class="fas fa-users"></i> <span id="roomMembersCount">0</span> membros</span>
                             <span><i class="fas fa-calendar"></i> Criada em <span id="roomCreatedAt"></span></span>
+                            <span id="roomPasswordStatus"><i class="fas fa-lock"></i> <span id="roomPasswordText">Sem senha</span></span>
                         </div>
                     </div>
                     <div class="room-members" id="roomMembersList">
@@ -423,6 +429,28 @@
                     <button type="button" class="btn-secondary" onclick="closeModal('roomDetailsModal')">Fechar</button>
                     <button type="button" class="btn-primary" id="joinRoomBtn" onclick="joinRoom()">Entrar na Sala</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Room Password Modal -->
+        <div class="modal" id="roomPasswordModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-lock"></i> Senha da Sala</h3>
+                    <button class="modal-close" onclick="closeModal('roomPasswordModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="roomPasswordForm" class="modal-form">
+                    <div class="form-group">
+                        <label for="roomPasswordInput">Digite a senha da sala:</label>
+                        <input type="password" id="roomPasswordInput" name="password" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('roomPasswordModal')">Cancelar</button>
+                        <button type="submit" class="btn-primary">Entrar na Sala</button>
+                    </div>
+                </form>
             </div>
         </div>
 

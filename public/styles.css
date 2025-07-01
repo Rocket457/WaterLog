@@ -1613,10 +1613,86 @@ body {
 .checkbox-label {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: #d4d4d4;
+    padding: 8px 0;
+    min-height: 40px;
+}
+
+/* Garantir que o checkbox seja bem visível */
+.form-group .checkbox-label {
+    margin: 0;
+    padding: 12px 0;
+}
+
+.form-group .checkbox-label .checkmark {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #22262c;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.form-group .checkbox-label input[type="checkbox"]:checked + .checkmark::after {
+    font-size: 13px;
+}
+
+/* Responsividade para checkboxes */
+@media (max-width: 768px) {
+    .checkmark {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+    }
+    
+    .form-group .checkbox-label .checkmark {
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+    }
+    
+    .checkbox-label input[type="checkbox"]:checked + .checkmark::after {
+        font-size: 13px;
+    }
+    
+    .form-group .checkbox-label input[type="checkbox"]:checked + .checkmark::after {
+        font-size: 14px;
+    }
+    
+    .checkbox-label {
+        font-size: 0.95rem;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .checkmark {
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+    }
+    
+    .form-group .checkbox-label .checkmark {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+    }
+    
+    .checkbox-label input[type="checkbox"]:checked + .checkmark::after {
+        font-size: 14px;
+    }
+    
+    .form-group .checkbox-label input[type="checkbox"]:checked + .checkmark::after {
+        font-size: 15px;
+    }
+    
+    .checkbox-label {
+        font-size: 0.9rem;
+        gap: 8px;
+        padding: 10px 0;
+    }
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -1624,17 +1700,29 @@ body {
 }
 
 .checkmark {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border: 2px solid #22262c;
-    border-radius: 4px;
+    border-radius: 3px;
     position: relative;
     transition: all 0.3s ease;
+    flex-shrink: 0;
+    display: inline-block;
 }
 
 .checkbox-label input[type="checkbox"]:checked + .checkmark {
     background: #4facfe;
     border-color: #4facfe;
+}
+
+.checkbox-label:hover .checkmark {
+    border-color: #4facfe;
+    box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+}
+
+.form-group .checkbox-label:hover .checkmark {
+    border-color: #4facfe;
+    box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.3);
 }
 
 .checkbox-label input[type="checkbox"]:checked + .checkmark::after {
