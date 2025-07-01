@@ -226,6 +226,7 @@ Para fazer deploy em produção:
 
 1. **Configure as variáveis de ambiente**:
 ```bash
+PORT=999
 ```
 
 2. **Instale as dependências de produção**:
