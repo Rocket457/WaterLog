@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Console WaterLog</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .container {
+            background: #252526;
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid #22262c;
+        }
+        h1 {
+            color: #4facfe;
+            text-align: center;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2d2d30;
+            border-radius: 8px;
+            border: 1px solid #22262c;
+        }
+        .test-section h3 {
+            color: #4facfe;
+            margin-top: 0;
+        }
+        .test-btn {
+            background: #4facfe;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-btn:hover {
+            background: #3a8bdb;
+        }
+        .result {
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .instructions {
+            background: #2d2d30;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste do Console WaterLog</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instruções:</h3>
+            <p>1. Abra o console do navegador (F12 → Console)</p>
+            <p>2. Teste os comandos abaixo ou use os botões</p>
+            <p>3. Verifique se as APIs estão funcionando</p>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Testes de API</h3>
+            <button class="test-btn" onclick="testUsersAPI()">Testar /api/console/users</button>
+            <button class="test-btn" onclick="testStatsAPI()">Testar /api/console/stats</button>
+            <button class="test-btn" onclick="testInfoAPI()">Testar /api/console/info</button>
+            <div id="apiResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎮 Comandos do Console</h3>
+            <p>Digite no console do navegador:</p>
+            <ul>
+                <li><code>showUsers()</code> - Ver usuários logados</li>
+                <li><code>showStats()</code> - Ver estatísticas</li>
+                <li><code>showInfo()</code> - Ver todas as informações</li>
+                <li><code>showTopDrinkers()</code> - Ver ranking</li>
+                <li><code>showHelp()</code> - Ver ajuda</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Status do Sistema</h3>
+            <div id="statusResult" class="result">Carregando...</div>
+        </div>
+    </div>
+
+    <script src="console-commands.js"></script>
+    <script>
+        // Funções de teste
+        async function testUsersAPI() {
+            try {
+                const response = await fetch('/api/console/users');
+                const data = await response.json();
+                document.getElementById('apiResult').textContent = 
+                    '✅ API /api/console/users funcionando!\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('apiResult').textContent = 
+                    '❌ Erro na API /api/console/users:\n' + error.message;
+            }
+        }
+
+        async function testStatsAPI() {
+            try {
+                const response = await fetch('/api/console/stats');
+                const data = await response.json();
+                document.getElementById('apiResult').textContent = 
+                    '✅ API /api/console/stats funcionando!\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('apiResult').textContent = 
+                    '❌ Erro na API /api/console/stats:\n' + error.message;
+            }
+        }
+
+        async function testInfoAPI() {
+            try {
+                const response = await fetch('/api/console/info');
+                const data = await response.json();
+                document.getElementById('apiResult').textContent = 
+                    '✅ API /api/console/info funcionando!\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('apiResult').textContent = 
+                    '❌ Erro na API /api/console/info:\n' + error.message;
+            }
+        }
+
+        // Carregar status inicial
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/console/info');
+                const data = await response.json();
+                
+                const status = `🟢 Sistema Online
+📊 Estatísticas:
+  • Usuários cadastrados: ${data.stats.totalUsers}
+  • Garrafas: ${data.stats.totalBottles}
+  • Registros de água: ${data.stats.totalWaterRecords}
+  • Notificações: ${data.stats.totalNotifications}
+  • Usuários online: ${data.stats.onlineUsers}
+  • Tempo de atividade: ${Math.floor(data.stats.serverUptime / 60)} minutos
+
+👥 Usuários Online: ${data.onlineUsers.length > 0 ? 
+    data.onlineUsers.map(u => u.userName).join(', ') : 'Nenhum'}`;
+                
+                document.getElementById('statusResult').textContent = status;
+            } catch (error) {
+                document.getElementById('statusResult').textContent = 
+                    '❌ Erro ao carregar status: ' + error.message;
+            }
+        }
+
+        // Carregar status quando a página carregar
+        loadStatus();
+        
+        // Atualizar status a cada 10 segundos
+        setInterval(loadStatus, 10000);
+    </script>
+</body>
+</html> 

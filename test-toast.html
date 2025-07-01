@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Toast - WaterLog</title>
+    <link rel="stylesheet" href="public/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .test-btn {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+        .test-btn:hover {
+            transform: translateY(-2px);
+        }
+        .test-btn.success { background: linear-gradient(45deg, #4CAF50, #45a049); }
+        .test-btn.error { background: linear-gradient(45deg, #f44336, #da190b); }
+        .test-btn.warning { background: linear-gradient(45deg, #ff9800, #e68900); }
+        .test-btn.info { background: linear-gradient(45deg, #2196F3, #0b7dda); }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Teste de Notificações Toast</h1>
+        <p>Clique nos botões abaixo para testar as notificações:</p>
+        
+        <button class="test-btn success" onclick="testToast('success')">
+            <i class="fas fa-check-circle"></i> Sucesso
+        </button>
+        
+        <button class="test-btn error" onclick="testToast('error')">
+            <i class="fas fa-exclamation-circle"></i> Erro
+        </button>
+        
+        <button class="test-btn warning" onclick="testToast('warning')">
+            <i class="fas fa-exclamation-triangle"></i> Aviso
+        </button>
+        
+        <button class="test-btn info" onclick="testToast('info')">
+            <i class="fas fa-info-circle"></i> Informação
+        </button>
+        
+        <hr style="margin: 30px 0; border: 1px solid #333;">
+        
+        <h3>Status do DOM:</h3>
+        <p id="domStatus">Verificando...</p>
+        
+        <h3>Elementos do Toast:</h3>
+        <p id="toastStatus">Verificando...</p>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-content">
+            <i class="toast-icon"></i>
+            <span class="toast-message"></span>
+        </div>
+    </div>
+
+    <script>
+        // Função de teste do toast
+        function testToast(type) {
+            const messages = {
+                success: '✅ Operação realizada com sucesso!',
+                error: '❌ Ocorreu um erro inesperado!',
+                warning: '⚠️ Atenção! Esta é uma mensagem de aviso.',
+                info: 'ℹ️ Esta é uma mensagem informativa.'
+            };
+            
+            showToast(messages[type], type);
+        }
+        
+        // Função showToast (cópia da original)
+        function showToast(message, type = 'info') {
+            // Verificar se o DOM está pronto
+            if (document.readyState === 'loading') {
+                console.warn('DOM ainda não carregado, aguardando...');
+                document.addEventListener('DOMContentLoaded', () => {
+                    showToast(message, type);
+                });
+                return;
+            }
+            
+            // Aguardar um pouco mais para garantir que todos os elementos estejam disponíveis
+            setTimeout(() => {
+                const toastElement = document.getElementById('toast');
+                if (!toastElement) {
+                    console.warn('Elemento toast não encontrado');
+                    return;
+                }
+                
+                const toastContent = toastElement.querySelector('.toast-content');
+                const toastIcon = toastElement.querySelector('.toast-icon');
+                const toastMessage = toastElement.querySelector('.toast-message');
+                
+                if (!toastContent || !toastIcon || !toastMessage) {
+                    console.warn('Elementos do toast não encontrados');
+                    return;
+                }
+                
+                // Definir ícone baseado no tipo
+                const icons = {
+                    success: 'fas fa-check-circle',
+                    error: 'fas fa-exclamation-circle',
+                    info: 'fas fa-info-circle',
+                    warning: 'fas fa-exclamation-triangle'
+                };
+                
+                toastIcon.className = icons[type] || icons.info;
+                toastMessage.textContent = message;
+                
+                // Definir cor baseada no tipo
+                const colors = {
+                    success: 'linear-gradient(45deg, #4CAF50, #45a049)',
+                    error: 'linear-gradient(45deg, #f44336, #da190b)',
+                    info: 'linear-gradient(45deg, #2196F3, #0b7dda)',
+                    warning: 'linear-gradient(45deg, #ff9800, #e68900)'
+                };
+                
+                toastElement.style.background = colors[type] || colors.info;
+                
+                // Mostrar toast
+                toastElement.classList.add('show');
+                
+                // Esconder após 3 segundos
+                setTimeout(() => {
+                    toastElement.classList.remove('show');
+                }, 3000);
+            }, 100);
+        }
+        
+        // Verificar status do DOM
+        function checkStatus() {
+            const domStatus = document.getElementById('domStatus');
+            const toastStatus = document.getElementById('toastStatus');
+            
+            // Status do DOM
+            domStatus.textContent = `Estado do DOM: ${document.readyState}`;
+            
+            // Status dos elementos do toast
+            const toastElement = document.getElementById('toast');
+            const toastContent = toastElement?.querySelector('.toast-content');
+            const toastIcon = toastElement?.querySelector('.toast-icon');
+            const toastMessage = toastElement?.querySelector('.toast-message');
+            
+            if (toastElement && toastContent && toastIcon && toastMessage) {
+                toastStatus.textContent = '✅ Todos os elementos do toast encontrados';
+                toastStatus.style.color = '#4CAF50';
+            } else {
+                toastStatus.textContent = '❌ Elementos do toast não encontrados';
+                toastStatus.style.color = '#f44336';
+            }
+        }
+        
+        // Verificar status quando o DOM carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            checkStatus();
+            
+            // Teste automático após 2 segundos
+            setTimeout(() => {
+                showToast('🎉 Teste automático - DOM carregado com sucesso!', 'success');
+            }, 2000);
+        });
+        
+        // Verificar status periodicamente
+        setInterval(checkStatus, 1000);
+    </script>
+</body>
+</html> 

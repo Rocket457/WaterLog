@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterLog - Controle de Hidratação</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%233794ff' d='M32 4C32 4 12 28 12 42c0 11 9 18 20 18s20-7 20-18C52 28 32 4 32 4z'/%3E%3Cellipse fill='%23b3e0ff' cx='32' cy='46' rx='10' ry='6'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-tint"></i>
+                <h1>WaterLog</h1>
+            </div>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <button class="nav-btn" id="btnDashboard" onclick="showDashboard()"><i class="fas fa-chart-bar"></i> Dashboard</button>
+                <div class="connection-status" id="connectionStatus">
+                    <i class="fas fa-circle status-icon"></i>
+                    <span class="status-text">Conectando...</span>
+                </div>
+                <span id="userName"></span>
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
+            </div>
+        </header>
+
+        <div id="dashboardSection" style="display:none; padding: 30px 0;">
+            <h2 style="color:#4facfe;"><i class="fas fa-chart-bar"></i> Ranking de Consumo Diário</h2>
+            <div class="dashboard-filters">
+                <button class="filter-btn active" onclick="setFilter('day')" data-filter="day">
+                    <i class="fas fa-calendar-day"></i> Dia
+                </button>
+                <button class="filter-btn" onclick="setFilter('week')" data-filter="week">
+                    <i class="fas fa-calendar-week"></i> Semana
+                </button>
+                <button class="filter-btn" onclick="setFilter('month')" data-filter="month">
+                    <i class="fas fa-calendar-alt"></i> Mês
+                </button>
+            </div>
+            <canvas id="barChart" style="max-width:900px; margin:40px auto 0; background:#23272e; border-radius:20px; padding:30px;"></canvas>
+        </div>
+
+        <!-- Login Form -->
+        <div class="login-container" id="loginContainer">
+            <div class="login-card">
+                <h2><i class="fas fa-user-circle"></i> Entrar no WaterLog</h2>
+                <form id="loginForm" class="login-form">
+                    <div class="form-group">
+                        <label for="name">Nome:</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> Entrar
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div class="app-container" id="appContainer" style="display: none;">
+            <!-- Dashboard -->
+            <div class="dashboard">
+                <div class="stats-card">
+                    <h3><i class="fas fa-chart-line"></i> Estatísticas de Hoje</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-value" id="todayTotal">0</span>
+                            <span class="stat-label">ml bebidos hoje</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="todayRecords">0</span>
+                            <span class="stat-label">registros hoje</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="totalWaterDrunk">0</span>
+                            <span class="stat-label">ml total</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="water-progress">
+                    <h3><i class="fas fa-tint"></i> Meta Diária</h3>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <span class="progress-text" id="progressText">0 / 2000ml</span>
+                        <button class="edit-goal-btn" onclick="showEditGoalModal()">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottles Section -->
+            <div class="bottles-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-wine-bottle"></i> Minhas Garrafas</h3>
+                    <button class="btn-secondary" onclick="showAddBottleModal()">
+                        <i class="fas fa-plus"></i> Nova Garrafa
+                    </button>
+                </div>
+                <div class="bottles-grid" id="bottlesGrid">
+                    <!-- Garrafas serão carregadas aqui -->
+                </div>
+            </div>
+
+            <!-- User Records Section -->
+            <div class="records-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-history"></i> Meus Registros</h3>
+                    <button class="btn-secondary" onclick="loadUserRecords()">
+                        <i class="fas fa-sync-alt"></i> Atualizar
+                    </button>
+                </div>
+                <div class="records-list" id="recordsList">
+                    <!-- Registros serão carregados aqui -->
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h3><i class="fas fa-bolt"></i> Ações Rápidas</h3>
+                <div class="actions-grid">
+                    <button class="action-btn" onclick="showDrinkModal()">
+                        <i class="fas fa-wine-bottle"></i>
+                        <span>Beber Água</span>
+                    </button>
+                    <button class="action-btn" onclick="showFillBottleModal()">
+                        <i class="fas fa-faucet"></i>
+                        <span>Encher Garrafa</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="notifications-section">
+                <h3><i class="fas fa-bell"></i> Atividades Recentes</h3>
+                <div class="notifications-list" id="notificationsList">
+                    <!-- Notificações serão carregadas aqui -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        
+        <!-- Add Bottle Modal -->
+        <div class="modal" id="addBottleModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-plus"></i> Nova Garrafa</h3>
+                    <button class="modal-close" onclick="closeModal('addBottleModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="addBottleForm" class="modal-form">
+                    <div class="form-group">
+                        <label for="bottleName">Nome da Garrafa:</label>
+                        <input type="text" id="bottleName" name="name" placeholder="Ex: Garrafa do Trabalho" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bottleCapacity">Capacidade (ml):</label>
+                        <input type="number" id="bottleCapacity" name="capacity" placeholder="500" min="100" max="5000" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('addBottleModal')">Cancelar</button>
+                        <button type="submit" class="btn-primary">Adicionar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Drink Water Modal -->
+        <div class="modal" id="drinkModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-glass-water"></i> Beber Água</h3>
+                    <button class="modal-close" onclick="closeModal('drinkModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="drinkForm" class="modal-form">
+                    <div class="form-group">
+                        <label for="drinkBottle">Garrafa:</label>
+                        <select id="drinkBottle" name="bottleId" required>
+                            <option value="">Selecione uma garrafa</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="drinkPercent">Quantidade:</label>
+                        <select id="drinkPercent" name="percent" required>
+                            <option value="">Selecione a porcentagem</option>
+                            <option value="25">25%</option>
+                            <option value="50">50%</option>
+                            <option value="75">75%</option>
+                            <option value="100">100%</option>
+                        </select>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('drinkModal')">Cancelar</button>
+                        <button type="submit" class="btn-primary">Registrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Fill Bottle Modal -->
+        <div class="modal" id="fillBottleModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-faucet"></i> Encher Garrafa</h3>
+                    <button class="modal-close" onclick="closeModal('fillBottleModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="fillBottleForm" class="modal-form">
+                    <div class="form-group">
+                        <label for="fillBottle">Garrafa:</label>
+                        <select id="fillBottle" name="bottleId" required>
+                            <option value="">Selecione uma garrafa</option>
+                        </select>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('fillBottleModal')">Cancelar</button>
+                        <button type="submit" class="btn-primary">Marcar como Cheia</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Record Modal -->
+        <div class="modal" id="editRecordModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-edit"></i> Editar Registro</h3>
+                    <button class="modal-close" onclick="closeModal('editRecordModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="editRecordForm" class="modal-form">
+                    <input type="hidden" id="editRecordId" name="recordId">
+                    <div class="form-group">
+                        <label for="editRecordAmount">Quantidade (ml):</label>
+                        <input type="number" id="editRecordAmount" name="amount" min="1" max="5000" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('editRecordModal')">Cancelar</button>
+                        <button type="submit" class="btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Goal Modal -->
+        <div class="modal" id="editGoalModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-bullseye"></i> Editar Meta Diária</h3>
+                    <button class="modal-close" onclick="closeModal('editGoalModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="editGoalForm" class="modal-form">
+                    <div class="form-group">
+                        <label for="editGoalAmount">Meta diária (ml):</label>
+                        <input type="number" id="editGoalAmount" name="goal" min="500" max="10000" step="100" required>
+                        <small class="form-help">Recomendado: 2000ml por dia</small>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('editGoalModal')">Cancelar</button>
+                        <button type="submit" class="btn-primary">Salvar Meta</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div class="modal" id="confirmationModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-question-circle"></i> Confirmação</h3>
+                    <button class="modal-close" onclick="closeModal('confirmationModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmationMessage"></p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('confirmationModal')">Cancelar</button>
+                    <button type="button" class="btn-danger" id="confirmActionBtn">Confirmar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Toast -->
+        <div class="toast" id="toast">
+            <div class="toast-content">
+                <i class="toast-icon"></i>
+                <span class="toast-message"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="console-commands.js"></script>
+</body>
+</html> 
