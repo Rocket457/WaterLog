@@ -1,0 +1,30 @@
+{
+  "name": "WaterLog - Controle de Hidratação",
+  "short_name": "WaterLog",
+  "description": "Aplicativo para controle de hidratação no trabalho com gamificação e salas em grupo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#4facfe",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%233794ff' d='M32 4C32 4 12 28 12 42c0 11 9 18 20 18s20-7 20-18C52 28 32 4 32 4z'/%3E%3Cellipse fill='%23b3e0ff' cx='32' cy='46' rx='10' ry='6'/%3E%3C/svg%3E",
+      "sizes": "64x64",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Cpath fill='%233794ff' d='M96 12C96 12 36 84 36 126c0 33 27 54 60 54s60-21 60-54C156 84 96 12 96 12z'/%3E%3Cellipse fill='%23b3e0ff' cx='96' cy='138' rx='30' ry='18'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%233794ff' d='M256 32C256 32 96 224 96 336c0 88 72 144 160 144s160-56 160-144C416 224 256 32 256 32z'/%3E%3Cellipse fill='%23b3e0ff' cx='256' cy='368' rx='80' ry='48'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["health", "productivity", "lifestyle"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+} 

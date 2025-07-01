@@ -7,6 +7,7 @@ const fs = require('fs');
 const os = require('os');
 const readline = require('readline');
 const { Server } = require('socket.io');
+const webpush = require('web-push');
 
 const app = express();
 const server = http.createServer(app);
@@ -21,6 +22,14 @@ const io = new Server(server, {
 
 const PORT = 999;
 const HOST = '0.0.0.0'; // Aceita conexões de qualquer IP
+
+// Configuração do Web Push
+const vapidKeys = webpush.generateVAPIDKeys();
+webpush.setVapidDetails(
+  'mailto:waterlog@example.com',
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
 
 // Middleware
 app.use(cors());
@@ -274,6 +283,18 @@ app.get('/api/users', (req, res) => {
 app.get('/api/users/email/:email', (req, res) => {
   const { email } = req.params;
   const user = db.users.find(u => u.email === email);
+  
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado' });
+  }
+  
+  res.json(user);
+});
+
+// Buscar usuário por ID
+app.get('/api/users/:userId', (req, res) => {
+  const { userId } = req.params;
+  const user = db.users.find(u => u.id === userId);
   
   if (!user) {
     return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -697,6 +718,416 @@ app.post('/api/console/broadcast-toast', (req, res) => {
   
   res.json({ ok: true, clientsCount: io.engine.clientsCount });
 });
+
+// API para obter chave pública do VAPID
+app.get('/api/vapid-public-key', (req, res) => {
+  res.json({ publicKey: vapidKeys.publicKey });
+});
+
+// API para salvar subscription de notificação push
+app.post('/api/push-subscription', (req, res) => {
+  const { userId, subscription } = req.body;
+  
+  const user = db.users.find(u => u.id === userId);
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado' });
+  }
+  
+  user.pushSubscription = subscription;
+  saveDatabase(db);
+  
+  console.log(`📱 Subscription salva para ${user.name}`);
+  res.json({ message: 'Subscription salva com sucesso' });
+});
+
+// API para enviar notificação push
+app.post('/api/send-push-notification', (req, res) => {
+  const { userId, title, body, data } = req.body;
+  
+  const user = db.users.find(u => u.id === userId);
+  if (!user || !user.pushSubscription) {
+    return res.status(404).json({ error: 'Usuário não encontrado ou sem subscription' });
+  }
+  
+  const payload = JSON.stringify({
+    title: title || 'WaterLog',
+    body: body || 'Você tem uma nova notificação!',
+    icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Cpath fill="%233794ff" d="M32 4C32 4 12 28 12 42c0 11 9 18 20 18s20-7 20-18C52 28 32 4 32 4z"/%3E%3Cellipse fill="%23b3e0ff" cx="32" cy="46" rx="10" ry="6"/%3E%3C/svg%3E',
+    data: data || { url: '/' }
+  });
+  
+  webpush.sendNotification(user.pushSubscription, payload)
+    .then(() => {
+      console.log(`📱 Notificação push enviada para ${user.name}`);
+      res.json({ message: 'Notificação enviada com sucesso' });
+    })
+    .catch((error) => {
+      console.error('Erro ao enviar notificação push:', error);
+      res.status(500).json({ error: 'Erro ao enviar notificação' });
+    });
+});
+
+// API para salas
+app.get('/api/rooms', (req, res) => {
+  res.json(db.rooms || []);
+});
+
+app.post('/api/rooms', (req, res) => {
+  const { name, description, maxMembers, isPublic, createdBy } = req.body;
+  
+  if (!name || !createdBy) {
+    return res.status(400).json({ error: 'Nome da sala e criador são obrigatórios' });
+  }
+  
+  const room = {
+    id: `room_${Date.now()}`,
+    name,
+    description: description || '',
+    maxMembers: maxMembers || 50,
+    isPublic: isPublic !== false,
+    createdAt: new Date().toISOString(),
+    members: [createdBy],
+    createdBy
+  };
+  
+  if (!db.rooms) db.rooms = [];
+  db.rooms.push(room);
+  saveDatabase(db);
+  
+  // Notificar todos os usuários sobre a nova sala
+  io.emit('room_created', room);
+  
+  res.json(room);
+});
+
+app.get('/api/rooms/:roomId', (req, res) => {
+  const { roomId } = req.params;
+  const room = db.rooms?.find(r => r.id === roomId);
+  
+  if (!room) {
+    return res.status(404).json({ error: 'Sala não encontrada' });
+  }
+  
+  res.json(room);
+});
+
+app.post('/api/rooms/:roomId/join', (req, res) => {
+  const { roomId } = req.params;
+  const { userId } = req.body;
+  
+  const room = db.rooms?.find(r => r.id === roomId);
+  if (!room) {
+    return res.status(404).json({ error: 'Sala não encontrada' });
+  }
+  
+  if (room.members.includes(userId)) {
+    return res.status(400).json({ error: 'Usuário já está na sala' });
+  }
+  
+  if (room.members.length >= room.maxMembers) {
+    return res.status(400).json({ error: 'Sala está cheia' });
+  }
+  
+  room.members.push(userId);
+  
+  // Atualizar usuário
+  const user = db.users.find(u => u.id === userId);
+  if (user) {
+    user.currentRoom = roomId;
+  }
+  
+  saveDatabase(db);
+  
+  // Notificar membros da sala
+  io.to(roomId).emit('user_joined_room', { userId, roomId });
+  
+  res.json({ message: 'Entrou na sala com sucesso' });
+});
+
+app.post('/api/rooms/:roomId/leave', (req, res) => {
+  const { roomId } = req.params;
+  const { userId } = req.body;
+  
+  const room = db.rooms?.find(r => r.id === roomId);
+  if (!room) {
+    return res.status(404).json({ error: 'Sala não encontrada' });
+  }
+  
+  const memberIndex = room.members.indexOf(userId);
+  if (memberIndex === -1) {
+    return res.status(400).json({ error: 'Usuário não está na sala' });
+  }
+  
+  room.members.splice(memberIndex, 1);
+  
+  // Atualizar usuário
+  const user = db.users.find(u => u.id === userId);
+  if (user) {
+    user.currentRoom = null;
+  }
+  
+  saveDatabase(db);
+  
+  // Notificar membros da sala
+  io.to(roomId).emit('user_left_room', { userId, roomId });
+  
+  res.json({ message: 'Saiu da sala com sucesso' });
+});
+
+// Conectar a uma sala (estar ativo nela)
+app.post('/api/rooms/:roomId/connect', (req, res) => {
+  const { roomId } = req.params;
+  const { userId } = req.body;
+  
+  const room = db.rooms?.find(r => r.id === roomId);
+  if (!room) {
+    return res.status(404).json({ error: 'Sala não encontrada' });
+  }
+  
+  if (!room.members.includes(userId)) {
+    return res.status(400).json({ error: 'Você precisa ser membro da sala para se conectar' });
+  }
+  
+  // Atualizar usuário - desconectar de qualquer sala anterior
+  const user = db.users.find(u => u.id === userId);
+  if (user) {
+    const previousRoom = user.currentRoom;
+    user.currentRoom = roomId;
+    
+    // Notificar sala anterior se existir
+    if (previousRoom && previousRoom !== roomId) {
+      io.to(previousRoom).emit('user_disconnected', { userId, roomId: previousRoom });
+    }
+    
+    // Notificar nova sala
+    io.to(roomId).emit('user_connected', { userId, roomId });
+  }
+  
+  saveDatabase(db);
+  
+  res.json({ message: 'Conectado à sala com sucesso' });
+});
+
+// Desconectar de uma sala (mas permanecer como membro)
+app.post('/api/rooms/:roomId/disconnect', (req, res) => {
+  const { roomId } = req.params;
+  const { userId } = req.body;
+  
+  const room = db.rooms?.find(r => r.id === roomId);
+  if (!room) {
+    return res.status(404).json({ error: 'Sala não encontrada' });
+  }
+  
+  // Atualizar usuário
+  const user = db.users.find(u => u.id === userId);
+  if (user && user.currentRoom === roomId) {
+    user.currentRoom = null;
+    
+    // Notificar sala
+    io.to(roomId).emit('user_disconnected', { userId, roomId });
+  }
+  
+  saveDatabase(db);
+  
+  res.json({ message: 'Desconectado da sala com sucesso' });
+});
+
+// Obter salas do usuário com status de conexão
+app.get('/api/users/:userId/rooms', (req, res) => {
+  const { userId } = req.params;
+  const user = db.users.find(u => u.id === userId);
+  
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado' });
+  }
+  
+  const userRooms = db.rooms?.filter(room => room.members.includes(userId)).map(room => ({
+    ...room,
+    isConnected: user.currentRoom === room.id,
+    connectedMembers: room.members.filter(memberId => {
+      const member = db.users.find(u => u.id === memberId);
+      return member && member.currentRoom === room.id;
+    }).length
+  })) || [];
+  
+  res.json(userRooms);
+});
+
+// API para gamificação
+app.get('/api/rankings/daily', (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const dailyRanking = db.dailyRankings?.find(r => r.date === today);
+  
+  if (!dailyRanking) {
+    // Criar ranking do dia se não existir
+    const rankings = db.users.map(user => ({
+      userId: user.id,
+      userName: user.name,
+      totalWater: 0,
+      points: 0
+    }));
+    
+    const newRanking = {
+      date: today,
+      rankings
+    };
+    
+    if (!db.dailyRankings) db.dailyRankings = [];
+    db.dailyRankings.push(newRanking);
+    saveDatabase(db);
+    
+    res.json(newRanking);
+  } else {
+    res.json(dailyRanking);
+  }
+});
+
+app.get('/api/rankings/weekly', (req, res) => {
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay());
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+  
+  // Calcular ranking semanal baseado nos rankings diários
+  const weeklyRankings = {};
+  
+  db.dailyRankings?.forEach(daily => {
+    if (daily.date >= weekStartStr) {
+      daily.rankings.forEach(ranking => {
+        if (!weeklyRankings[ranking.userId]) {
+          weeklyRankings[ranking.userId] = {
+            userId: ranking.userId,
+            userName: ranking.userName,
+            totalWater: 0,
+            totalPoints: 0
+          };
+        }
+        weeklyRankings[ranking.userId].totalWater += ranking.totalWater;
+        weeklyRankings[ranking.userId].totalPoints += ranking.points;
+      });
+    }
+  });
+  
+  const weeklyRanking = {
+    weekStart: weekStartStr,
+    rankings: Object.values(weeklyRankings).sort((a, b) => b.totalPoints - a.totalPoints)
+  };
+  
+  res.json(weeklyRanking);
+});
+
+app.get('/api/users/:userId/points', (req, res) => {
+  const { userId } = req.params;
+  const user = db.users.find(u => u.id === userId);
+  
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado' });
+  }
+  
+  const pointHistory = db.pointHistory?.filter(p => p.userId === userId) || [];
+  
+  res.json({
+    points: user.points || 0,
+    history: pointHistory
+  });
+});
+
+// Função para calcular e distribuir pontos diários
+function calculateDailyPoints() {
+  const today = new Date().toISOString().split('T')[0];
+  const dailyRanking = db.dailyRankings?.find(r => r.date === today);
+  
+  if (!dailyRanking) return;
+  
+  // Calcular consumo total de água para hoje
+  const todayRecords = db.waterRecords.filter(record => {
+    const recordDate = new Date(record.timestamp).toISOString().split('T')[0];
+    return recordDate === today;
+  });
+  
+  // Agrupar por usuário
+  const userWaterConsumption = {};
+  todayRecords.forEach(record => {
+    if (!userWaterConsumption[record.userId]) {
+      userWaterConsumption[record.userId] = 0;
+    }
+    userWaterConsumption[record.userId] += record.amount;
+  });
+  
+  // Atualizar rankings
+  dailyRanking.rankings.forEach(ranking => {
+    ranking.totalWater = userWaterConsumption[ranking.userId] || 0;
+  });
+  
+  // Ordenar por consumo de água
+  dailyRanking.rankings.sort((a, b) => b.totalWater - a.totalWater);
+  
+  // Distribuir pontos
+  const pointsDistribution = [15, 10, 5, 3, 1]; // 1º, 2º, 3º, 4º, 5º lugares
+  
+  dailyRanking.rankings.forEach((ranking, index) => {
+    const points = pointsDistribution[index] || 0;
+    ranking.points = points;
+    
+    // Adicionar pontos ao usuário
+    const user = db.users.find(u => u.id === ranking.userId);
+    if (user) {
+      user.points = (user.points || 0) + points;
+      
+      // Registrar no histórico
+      if (points > 0) {
+        const pointRecord = {
+          id: `point_${Date.now()}_${ranking.userId}`,
+          userId: ranking.userId,
+          points,
+          reason: `${index + 1}º lugar no ranking diário`,
+          timestamp: new Date().toISOString()
+        };
+        
+        if (!db.pointHistory) db.pointHistory = [];
+        db.pointHistory.push(pointRecord);
+      }
+    }
+  });
+  
+  saveDatabase(db);
+  
+  // Notificar usuários sobre os pontos ganhos
+  dailyRanking.rankings.forEach((ranking, index) => {
+    if (ranking.points > 0) {
+      io.emit('points_earned', {
+        userId: ranking.userId,
+        userName: ranking.userName,
+        points: ranking.points,
+        position: index + 1,
+        totalWater: ranking.totalWater
+      });
+    }
+  });
+}
+
+// Agendar cálculo de pontos diário à meia-noite
+function scheduleDailyPointsCalculation() {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  
+  const timeUntilMidnight = tomorrow.getTime() - now.getTime();
+  
+  setTimeout(() => {
+    calculateDailyPoints();
+    
+    // Agendar para todos os dias
+    setInterval(calculateDailyPoints, 24 * 60 * 60 * 1000);
+  }, timeUntilMidnight);
+  
+  console.log(`🏆 Agendador de pontos configurado: cálculo diário à meia-noite`);
+  console.log(`   Próximo cálculo em: ${tomorrow.toLocaleString('pt-BR')}`);
+}
+
+// Iniciar agendador de pontos
+scheduleDailyPointsCalculation();
 
 // Rota principal
 app.get('/', (req, res) => {
