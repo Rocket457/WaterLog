@@ -67,6 +67,11 @@ function showEditGoalModal() {
     }
 }
 
+function showModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'block';
+}
+
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'none';
@@ -76,7 +81,7 @@ function closeModal(modalId) {
 window.addEventListener('click', (e) => {
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
-        if (e.target === modal) {
+        if (e.target === modal && modal.id !== 'nameModal') {
             modal.style.display = 'none';
         }
     });

@@ -84,6 +84,14 @@ body {
     color: #9cdcfe;
 }
 
+.user-name-clickable {
+    transition: color 0.2s ease;
+}
+
+.user-name-clickable:hover {
+    color: #4facfe !important;
+}
+
 .user-points {
     display: flex;
     align-items: center;
@@ -897,7 +905,7 @@ body {
     padding: 15px 20px;
     border-radius: 10px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    z-index: 1001;
+    z-index: 10000;
     transform: translateX(400px);
     transition: transform 0.3s ease;
     max-width: 300px;

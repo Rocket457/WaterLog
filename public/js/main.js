@@ -41,6 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupRecordForms();
     setupRoomForms();
     setupDashboardForms();
+    setupProfileForm();
+    setupNameForm();
     
     // Iniciar listeners do Socket.IO
     setupSocketListeners();

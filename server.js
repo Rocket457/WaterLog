@@ -8,6 +8,7 @@ const os = require('os');
 const readline = require('readline');
 const { Server } = require('socket.io');
 const webpush = require('web-push');
+const crypto = require('crypto-js');
 
 const app = express();
 const server = http.createServer(app);
@@ -317,32 +318,90 @@ app.get('/api/users/:userId', (req, res) => {
 
 // Criar novo usuário
 app.post('/api/users', (req, res) => {
-  const { name, email } = req.body;
-  
-  if (!name || !email) {
-    return res.status(400).json({ error: 'Nome e email são obrigatórios' });
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email e senha são obrigatórios' });
   }
-  
-  // Verificar se usuário já existe
+  // Verificar se email já existe
   const existingUser = db.users.find(user => user.email === email);
   if (existingUser) {
-    return res.status(400).json({ error: 'Usuário já existe' });
+    return res.status(400).json({ error: 'Email já cadastrado' });
   }
-  
   const newUser = {
     id: Date.now().toString(),
-    name,
     email,
+    password: crypto.MD5(password).toString(),
+    name: '',
     createdAt: new Date().toISOString(),
     totalWaterDrunk: 0,
     dailyGoal: 2000, // Valor padrão para meta diária
     bottles: []
   };
-  
   db.users.push(newUser);
   saveDatabase(db);
+  res.status(201).json({ id: newUser.id, email: newUser.email });
+});
+
+// Login por email e senha
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+  }
+  const hashedPassword = crypto.MD5(password).toString();
+  const user = db.users.find(u => u.email === email && u.password === hashedPassword);
+  if (!user) {
+    return res.status(401).json({ error: 'Email ou senha inválidos' });
+  }
+  res.json({ id: user.id, email: user.email, name: user.name, dailyGoal: user.dailyGoal, totalWaterDrunk: user.totalWaterDrunk });
+});
+
+// Atualizar perfil do usuário
+app.put('/api/users/:userId', (req, res) => {
+  const { userId } = req.params;
+  const { name, email, password } = req.body;
   
-  res.status(201).json(newUser);
+  const user = db.users.find(u => u.id === userId);
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado' });
+  }
+  
+  // Validar nome
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Nome é obrigatório' });
+  }
+  
+  if (name.trim().length < 2) {
+    return res.status(400).json({ error: 'Nome deve ter pelo menos 2 caracteres' });
+  }
+  
+  // Verificar se o novo nome já existe (exceto para o usuário atual)
+  const existingUserWithName = db.users.find(u => u.name === name.trim() && u.id !== userId);
+  if (existingUserWithName) {
+    return res.status(400).json({ error: 'Nome de usuário já existe' });
+  }
+  
+  // Atualizar dados do usuário
+  user.name = name.trim();
+  
+  // Atualizar email se fornecido
+  if (email !== undefined) {
+    user.email = email ? email.trim() : null;
+  }
+  
+  // Atualizar senha se fornecida
+  if (password && password.trim()) {
+    if (password.length < 3) {
+      return res.status(400).json({ error: 'A senha deve ter pelo menos 3 caracteres' });
+    }
+    user.password = crypto.MD5(password).toString();
+  }
+  
+  saveDatabase(db);
+  
+  // Retornar dados atualizados (sem a senha)
+  const { password: _, ...userWithoutPassword } = user;
+  res.json(userWithoutPassword);
 });
 
 // Listar garrafas de um usuário
