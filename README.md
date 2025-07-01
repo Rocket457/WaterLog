@@ -58,21 +58,6 @@ testSocketIO()        // Testar conexão
 showHelp()            // Ver todos os comandos
 ```
 
-## 🔒 Segurança
-
-⚠️ **ATENÇÃO:** O servidor está exposto à internet. Considere:
-- Configurar HTTPS (porta 443)
-- Implementar autenticação
-- Monitorar logs de acesso
-- Configurar firewall adequadamente
-
-## 📞 Suporte
-
-Para problemas de conectividade:
-1. Verifique se a porta 80 está aberta no roteador
-2. Confirme se o DNS está apontando para o IP correto
-3. Teste a conectividade: `ping waterlog.servebeer.com`
-
 ## 🚀 Funcionalidades
 
 - **Cadastro de Usuários**: Sistema simples de login com nome e email
@@ -115,7 +100,7 @@ npm run dev
 ```
 
 4. **Acesse o aplicativo**:
-Abra seu navegador e acesse: `http://localhost:9999`
+Abra seu navegador e acesse: `http://localhost:999`
 
 ## 🎯 Como Usar
 
@@ -241,7 +226,6 @@ Para fazer deploy em produção:
 
 1. **Configure as variáveis de ambiente**:
 ```bash
-PORT=9999
 ```
 
 2. **Instale as dependências de produção**:
@@ -268,13 +252,14 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 ## 👥 Autores
 
-- **WaterLog Team** - Desenvolvimento inicial
+- **Eduardo Anibal** - Desenvolvimento inicial
 
 ## 🙏 Agradecimentos
 
 - Font Awesome pelos ícones
 - Socket.IO pela comunicação em tempo real
 - Comunidade Node.js pelas ferramentas incríveis
+- Meus colegas de time da Blueez por sugerirem ideias para o projeto!
 
 ---
 
